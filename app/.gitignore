@@ -1,6 +1,37 @@
+# Environment Variables — NEVER commit
 .env
+.env.*
+
+# Virtual Environment
 myenv/
+venv/
+.venv/
+
+# Vector DB
 vector_db/
+vector_store/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# AWS credentials
+.aws/
+
+# Data folder (user uploads/docs)
+data/
+
+# VS Code
+.vscode/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Models (large files)
+models/
