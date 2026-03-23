@@ -1,0 +1,105 @@
+name: Deploy Application Docker Image to EC2
+
+# Trigger: runs automatically on every push to main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  # ─── JOB 1: BUILD & PUSH IMAGE TO ECR ───────────────────────────────────────
+  # Runs on GitHub's cloud server (fresh Ubuntu VM every time)
+  Continuous-Integration:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Step 1: Pull your latest code from GitHub into the runner
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Step 2: Authenticate the runner with AWS using your IAM credentials
+      # These values come from GitHub Secrets — never hardcoded
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # Step 3: Login Docker to your private ECR registry
+      # This allows docker push to work with your AWS account
+      # The output 'registry' gives us the ECR URL for tagging
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Step 4: Build the Docker image, tag it, and push to ECR
+      # ECR_REGISTRY = your AWS account ECR URL (from login step output)
+      # ECR_REPOSITORY = your repo name (from GitHub Secrets)
+      # IMAGE_TAG = 'latest' (overwrites previous image on every push)
+      - name: Build, tag and push image to ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+          IMAGE_TAG: latest
+        run: |
+          # Build image from your app's Dockerfile
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./app
+
+          # Push the built image to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          # Save the full image URI as an output for reference
+          # Note: set-output is deprecated — works but shows a warning
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # ─── JOB 2: DEPLOY ON EC2 ────────────────────────────────────────────────────
+  # Runs ONLY after CI passes (needs: Continuous-Integration)
+  # 'self-hosted' means this job runs directly ON your EC2 instance
+  # (you must install the GitHub Actions runner on EC2 first)
+  Continuous-Deployment:
+    needs: Continuous-Integration  # Wait for CI to succeed before deploying
+    runs-on: self-hosted           # Executes on your EC2 machine directly
+
+    steps:
+
+      # Step 1: Pull latest code onto EC2 as well
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Step 2: Authenticate EC2 with AWS so it can pull from ECR
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # Step 3: Login Docker on EC2 to your ECR registry
+      # EC2 needs this to be able to pull the image we just pushed
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Step 4: Stop old container, remove it, and run the new image
+      # || true = don't fail if no container is running yet (first deploy)
+      # -d = run in background (detached mode)
+      # -p 80:5000 = map EC2 port 80 (public) to container port 5000
+      # --env-file = load your API keys / config from .env on EC2
+      - name: Run Docker image to serve users
+        run: |
+          # Stop the currently running container (ignore error if not running)
+          docker stop text-assistant || true
+
+          # Remove the old container so we can recreate it fresh
+          docker rm text-assistant || true
+
+          # Pull and run the latest image from ECR
+          docker run -d \
+            --name text-assistant \
+            -p 80:5000 \
+            --env-file /home/ec2-user/.env \
+            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPO }}:latest
