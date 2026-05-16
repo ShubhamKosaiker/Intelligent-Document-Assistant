@@ -1,0 +1,22 @@
+
+# Local env / secrets
+.env
+*.env
+
+# Python
+myenv/
+venv/
+__pycache__/
+*.pyc
+
+# Local vector databases / generated data
+vector_db/
+chroma_db/
+data/arxiv/
+
+# Personal / prep files
+interview_prep/
+
+# OS / editor
+.DS_Store
+.vscode/

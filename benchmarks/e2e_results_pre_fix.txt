@@ -1,0 +1,43 @@
+PRE-FIX (ConversationBufferMemory — unbounded history)
+Indexed chunks at time of test: 8,311 (old corpus)
+LLM: llama-3.3-70b-versatile (Groq)
+Queries: 25 succeeded
+
+P50:  13.41s
+P95:  22.22s
+Mean: 12.42s
+Min:   0.82s  (query 1 — fresh memory)
+Max:  25.81s
+
+Raw latencies in order of execution (seconds):
+  1: 0.89     <-- fresh session
+  2: 1.79
+  3: 1.36
+  4: 1.28
+  5: 1.15
+  6: 0.82
+  7: 1.43
+  8: 1.12
+  9: 11.37    <-- history growing, Groq slowdown begins
+ 10: 12.80
+ 11: 12.53
+ 12: 12.35
+ 13: 15.57
+ 14: 13.41
+ 15: 15.27
+ 16: 16.78
+ 17: 18.23
+ 18: 20.33
+ 19: 17.46
+ 20: 21.50
+ 21: 21.34
+ 22: 22.59
+ 23: 22.22
+ 24: 21.20
+ 25: 25.81    <-- prompt contains 24 turns of history
+
+Mean of first 8 queries:  1.23s  (honest per-request latency)
+Mean of queries 9-25:    17.05s  (degraded by prompt bloat)
+
+Conclusion: linear latency growth proved prompt size was unbounded.
+Fix: swap ConversationBufferMemory -> ConversationBufferWindowMemory(k=4).

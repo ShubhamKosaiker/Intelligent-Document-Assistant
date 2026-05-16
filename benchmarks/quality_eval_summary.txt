@@ -1,0 +1,9 @@
+RAGAS RESULTS
+Questions evaluated: 15
+Judge LLM: llama-3.1-8b-instant (Groq) — generator: llama-3.3-70b-versatile
+Embeddings: sentence-transformers/all-MiniLM-L6-v2
+
+faithfulness          : 0.625
+answer_relevancy      : 0.477
+context_precision     : 0.861
+context_recall        : 0.750
