@@ -30,6 +30,23 @@ User → Flask API → PDF/TXT Processing → HuggingFace Embeddings
 - AWS S3 integration for document storage
 - Fast inference via Groq API
 
+## 📊 Benchmarks
+
+This project includes reproducible benchmark scripts for retrieval latency, end-to-end latency, and RAGAS-based answer quality evaluation.
+
+Latest benchmark highlights:
+
+| Area | Result |
+|------|--------|
+| Retrieval latency | P50: 13.7 ms, P95: 19.0 ms |
+| Indexed corpus | 22 arXiv papers, 2,968 chunks |
+| RAGAS faithfulness | 0.625 |
+| RAGAS answer relevancy | 0.477 |
+| RAGAS context precision | 0.861 |
+| RAGAS context recall | 0.750 |
+
+See [`benchmarks/`](benchmarks/) for scripts, raw results, and methodology.
+
 ## ⚙️ Setup
 
 ### 1. Clone the repo
