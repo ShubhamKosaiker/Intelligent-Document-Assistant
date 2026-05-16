@@ -89,31 +89,46 @@ Raw data for both runs lives in `benchmarks/e2e_results.txt` and
 `benchmarks/e2e_results_pre_fix.txt`.
 
 ---
-
 ## Benchmark 3 — Answer Quality (RAGAS)
 
 Reference-based evaluation using [RAGAS](https://docs.ragas.io/).
-15 hand-labelled Q/A pairs in `quality_eval_dataset.py`, graded by
-`llama-3.3-70b-versatile` as judge LLM.
 
-Metric | Mean | Successful grades | Notes
----|---:|---:|---
-`answer_relevancy`  | **0.545** | 9/15 | How well the answer addresses the question.
-`context_precision` | **0.520** | 7/15 | Fraction of retrieved context that is relevant.
-`context_recall`    | 0.500 | 1/15 | Single-datapoint — not meaningful.
-`faithfulness`      | n/a | 0/15 | Judge calls exhausted before any grade returned.
+15 hand-labeled Q/A pairs were evaluated using the live RAG pipeline.
 
-Partial result: mid-run the evaluation exhausted Groq free-tier's
-100K tokens-per-day cap (RAGAS issues 3-4 LLM grading calls per Q per
-metric → ~60 judge calls for this eval). Re-running on Groq Dev Tier or
-after a 24h quota reset will produce full coverage. Harness committed at
-`benchmarks/quality_eval.py`; dataset at `benchmarks/quality_eval_dataset.py`.
+| Parameter | Value |
+|----------|-------|
+| Generator LLM | `llama-3.3-70b-versatile` via Groq |
+| Judge LLM | `llama-3.1-8b-instant` via Groq |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
+| Retriever | ChromaDB, top-k=4 |
+| Questions evaluated | 15 |
 
-Interpretation: ~0.5 on both `answer_relevancy` and `context_precision` is a
-reasonable first-pass baseline. Known improvements to try: hybrid retrieval
-(BM25 + dense), cross-encoder re-ranking, similarity-score thresholding.
+### Results
 
----
+| Metric | Score | Interpretation |
+|--------|------:|----------------|
+| `faithfulness` | **0.625** | Answers are moderately grounded in retrieved context. |
+| `answer_relevancy` | **0.477** | Weakest area; answers do not always directly address the question. |
+| `context_precision` | **0.861** | Strongest result; retrieved chunks are mostly relevant. |
+| `context_recall` | **0.750** | Retriever usually surfaces enough information to answer. |
+
+### Interpretation
+
+The retrieval layer performed well: `context_precision` was high and `context_recall` was solid.
+
+The weaker area was answer generation. `answer_relevancy` below 0.5 suggests the model sometimes produced answers that were related, but not direct enough.
+
+This changes the next improvement path: instead of only tuning retrieval, the answer-generation prompt and response constraints need to be tightened.
+
+Known improvements to test:
+
+- Stronger answer-generation prompt
+- More explicit “answer only the question” instruction
+- Hybrid retrieval: BM25 + dense retrieval
+- Cross-encoder reranking
+- Similarity-score thresholding
+
+Raw outputs are available in `quality_eval_results.csv`; summary scores are in `quality_eval_summary.txt`.
 
 ## Honest caveats
 
